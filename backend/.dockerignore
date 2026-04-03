@@ -1,0 +1,41 @@
+# Virtual environments
+venv
+.venv
+env
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Local data and env (mounted as volumes)
+data
+uploads
+logs
+.env
+.env.*
+
+# Test files (optional - remove if tests should run in Docker)
+tests
+*.test.py
+
+# Docker
+Dockerfile
+docker-compose*.yml
+
+# Documentation
+*.md
+docs
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,250 @@
+"""
+Document storage with SQLite FTS5 and sqlitevec for hybrid search.
+"""
+
+import json
+import re
+import logging
+from typing import List, Dict, Any, Optional
+import numpy as np
+from sqlalchemy import text
+
+from core.config import settings
+from core.database import SessionLocal
+from models import Chunk
+from services.llm_factory import LLMFactory
+
+logger = logging.getLogger("kms.docstore")
+
+
+class DocumentStore:
+    """Manages document storage with FTS5 and vector embeddings."""
+
+    def __init__(self):
+        self.embedding_dim = settings.default_embedding_dim
+
+    def initialize(self):
+        """Initialize FTS5 and vec tables if they don't exist."""
+        logger.info("Initializing document store: creating FTS5 and vec tables if needed")
+        with SessionLocal() as db:
+            # Create FTS5 table for full-text search
+            db.execute(text("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS fts_chunks USING fts5(
+                    content,
+                    chunk_id UNINDEXED
+                )
+            """))
+
+            # Try to create sqlitevec table for vector search
+            # Note: vec0 extension must be loaded first - may fail if SQLite has extensions disabled
+            try:
+                db.execute(text(f"""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+                        embedding float[{self.embedding_dim}]
+                    )
+                """))
+            except Exception as e:
+                logger.warning(f"vec0 not available, skipping vector table creation: {e}")
+
+            db.commit()
+
+    async def store_document(self, document_id: int, chunks_data: List[Dict[str, Any]]):
+        """
+        Store document chunks in chunks table, FTS5, and vector tables.
+        chunks_data: List of {"content": str, "metadata": dict}
+        """
+        logger.info(f"Storing document: document_id={document_id}, chunks={len(chunks_data)}")
+        # Generate embeddings before transaction to minimize lock time
+        if settings.sqlite_vec_loaded:
+            for chunk in chunks_data:
+                try:
+                    chunk["embedding"] = await self._generate_embedding(chunk["content"])
+                except Exception as e:
+                    logger.warning(f"embedding generation failed: {e}")
+
+        with SessionLocal() as db:
+            for chunk in chunks_data:
+                content = chunk["content"]
+                metadata = chunk.get("metadata", {})
+                chunk_index = metadata.get("chunk_index", 0)
+
+                # Save to chunks table
+                db_chunk = Chunk(
+                    document_id=document_id,
+                    content=content,
+                    chunk_metadata=metadata
+                )
+                db.add(db_chunk)
+                db.flush()  # Get the chunk id
+
+                # Insert into fts_chunks (FTS5) with explicit rowid
+                db.execute(
+                    text("INSERT INTO fts_chunks(rowid, content, chunk_id) VALUES (:rowid, :content, :chunk_id)"),
+                    {"rowid": db_chunk.id, "content": content, "chunk_id": f"{document_id}_{chunk_index}"}
+                )
+
+                # Store vector embedding if already generated
+                embedding = chunk.get("embedding")
+                if embedding is not None:
+                    try:
+                        db.execute(
+                            text("INSERT INTO vec_chunks(rowid, embedding) VALUES (:rowid, :embedding)"),
+                            {"rowid": db_chunk.id, "embedding": json.dumps(embedding.tolist())}
+                        )
+                    except Exception as e:
+                        logger.warning(f"vector storage failed: {e}")
+
+            db.commit()
+
+    def delete_document(self, document_id: int):
+        """Delete all chunks for a document from chunks table, FTS5, and vector tables."""
+        logger.info(f"Deleting document: document_id={document_id}")
+        with SessionLocal() as db:
+            # Delete from chunks table (ORM)
+            result = db.execute(
+                text("SELECT id FROM chunks WHERE document_id = :document_id"),
+                {"document_id": document_id}
+            )
+            chunk_ids = [row[0] for row in result.all()]
+
+            if chunk_ids:
+                db.execute(
+                    text("DELETE FROM chunks WHERE document_id = :document_id"),
+                    {"document_id": document_id}
+                )
+
+            # Delete from FTS5
+            pattern = f"{document_id}_%"
+            db.execute(
+                text("DELETE FROM fts_chunks WHERE chunk_id LIKE :pattern"),
+                {"pattern": pattern}
+            )
+
+            # Delete from vec_chunks only if sqlite_vec is loaded
+            if settings.sqlite_vec_loaded:
+                try:
+                    for chunk_id in chunk_ids:
+                        db.execute(
+                            text("DELETE FROM vec_chunks WHERE rowid = :rowid"),
+                            {"rowid": chunk_id}
+                        )
+                except Exception as e:
+                    logger.warning(f"vector deletion failed: {e}")
+
+            db.commit()
+
+    def search_fts(self, query: str, top_k: int = 50) -> List[Dict[str, Any]]:
+        """
+        Full-text search using FTS5.
+        Returns chunks with BM25 scores converted to similarity.
+        """
+        # Extract word tokens and join with spaces
+        tokens = re.findall(r'\w+', query, re.UNICODE)
+        sanitized = ' '.join(tokens)
+
+        with SessionLocal() as db:
+            result = db.execute(
+                text("""
+                    SELECT chunk_id, content,
+                           bm25(fts_chunks) as bm25_score
+                    FROM fts_chunks
+                    WHERE fts_chunks MATCH :query
+                    ORDER BY bm25_score
+                    LIMIT :limit
+                """),
+                {"query": sanitized, "limit": top_k}
+            )
+
+            rows = result.all()
+            if not rows:
+                logger.info(f"FTS search: query='{sanitized}', top_k={top_k}, results=0")
+                return []
+
+            # Get min/max BM25 for normalization
+            scores = [row[2] for row in rows]
+            min_score, max_score = min(scores), max(scores)
+            range_score = max_score - min_score if max_score != min_score else 1
+
+            results = []
+            for chunk_id, content, bm25_score in rows:
+                # Convert BM25 (lower is better) to similarity (higher is better)
+                similarity = 1.0 - (bm25_score - min_score) / range_score
+                results.append({
+                    "chunk_id": chunk_id,
+                    "content": content,
+                    "text_score": max(0, similarity)
+                })
+
+            logger.info(f"FTS search: query='{sanitized}', top_k={top_k}, results={len(results)}")
+            return results
+
+    def search_vector(self, embedding: np.ndarray, top_k: int = 50) -> List[Dict[str, Any]]:
+        """
+        Vector search using sqlitevec.
+        Returns chunks with cosine distance converted to similarity.
+        Returns empty list if vec0 extension is not available.
+        """
+        if not settings.sqlite_vec_loaded:
+            return []
+
+        with SessionLocal() as db:
+            embedding_json = json.dumps(embedding.tolist())
+
+            result = db.execute(
+                text("""
+                    SELECT rowid, distance
+                    FROM vec_chunks
+                    WHERE embedding MATCH :embedding
+                    ORDER BY distance
+                    LIMIT :limit
+                """),
+                {"embedding": embedding_json, "limit": top_k}
+            )
+
+            rows = result.all()
+            if not rows:
+                logger.info(f"Vector search: top_k={top_k}, results=0")
+                return []
+
+            # Get min/max distance for normalization
+            distances = [row[1] for row in rows]
+            min_dist, max_dist = min(distances), max(distances)
+            range_dist = max_dist - min_dist if max_dist != min_dist else 1
+
+            results = []
+            for rowid, distance in rows:
+                # Convert distance to similarity
+                similarity = 1.0 - (distance - min_dist) / range_dist
+                results.append({
+                    "rowid": rowid,
+                    "vector_distance": distance,
+                    "vector_score": max(0, similarity)
+                })
+
+            logger.info(f"Vector search: top_k={top_k}, results={len(results)}")
+            return results
+
+    def get_chunk_by_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific chunk by its ID."""
+        with SessionLocal() as db:
+            result = db.execute(
+                text("SELECT content, chunk_id FROM fts_chunks WHERE chunk_id = :chunk_id"),
+                {"chunk_id": chunk_id}
+            )
+            row = result.first()
+            if row:
+                return {"content": row[0], "chunk_id": row[1]}
+            return None
+
+    async def get_query_embedding(self, query_text: str) -> np.ndarray:
+        """Generate embedding for a query string."""
+        return await self._generate_embedding(query_text)
+
+    async def _generate_embedding(self, input_text: str) -> np.ndarray:
+        """
+        Generate embedding using the configured LLM.
+        Falls back to a simple hash-based embedding if no LLM configured.
+        """
+        llm = LLMFactory.get_embedding_model()
+        embedding = await llm.embed(input_text)
+        return np.array(embedding)

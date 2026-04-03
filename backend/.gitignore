@@ -1,0 +1,8 @@
+.env
+data
+uploads
+logs
+
+__pycache__
+
+.DS_Store
