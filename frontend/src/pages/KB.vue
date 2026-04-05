@@ -321,9 +321,10 @@ async function saveIntent() {
 
   savingIntent.value = true
   try {
-    await api.put(`/kb/documents/${selectedDocForEdit.value.id}/intent`, {
-      intent_space_id: editIntentId.value
-    })
+    const params = editIntentId.value !== null
+      ? { intent_space_id: editIntentId.value }
+      : {}
+    await api.put(`/kb/documents/${selectedDocForEdit.value.id}/intent`, null, { params })
     message.success('Intent updated')
     showEditIntentModal.value = false
     await loadDocuments()
