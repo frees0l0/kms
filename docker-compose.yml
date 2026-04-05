@@ -7,7 +7,6 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/data:/app/data
-      - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
     env_file:
       - ./backend/.env

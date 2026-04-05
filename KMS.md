@@ -191,6 +191,7 @@ backend/
 │   │   ├── admin.py         # Admin APIs (document upload, configs, logs)
 │   │   └── analytics.py     # Analytics data endpoints
 ├── core/                    # Core business logic
+│   ├── orchestrator.py      # Orchestrator for RAG pipeline
 │   ├── classifier.py        # Intent classifier (LLM calls)
 │   ├── hybrid_retriever.py  # Hybrid search (FTS5 + vector) with weighting
 │   ├── document_parser.py   # PDF/DOCX parsing, chunking
@@ -204,7 +205,7 @@ backend/
 │   └── llm_factory.py       # Unified LLM client (model switching)
 ├── utils/                   # Utilities (logging, config, exceptions)
 ├── data/                    # SQLite database file (includes FTS5 & vector tables)
-├── uploads/                 # Uploaded original documents (optional)
+│   ├── uploads/                 # Uploaded original documents (optional)
 ├── main.py                  # FastAPI entry point
 └── requirements.txt
 ```
@@ -762,7 +763,6 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./uploads:/app/uploads
     env_file: .env
   frontend:
     build: ./frontend

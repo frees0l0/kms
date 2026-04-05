@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p data uploads logs
+RUN mkdir -p data logs
 
 EXPOSE 8000
 

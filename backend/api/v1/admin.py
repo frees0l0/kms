@@ -31,7 +31,7 @@ logger = logging.getLogger("kms.admin")
 router = APIRouter()
 
 # Upload directory
-UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR = Path("data/uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 

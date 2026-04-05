@@ -1,6 +1,5 @@
 .env
 data
-uploads
 logs
 
 __pycache__

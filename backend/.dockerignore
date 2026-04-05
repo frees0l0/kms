@@ -19,7 +19,6 @@ __pycache__
 
 # Local data and env (mounted as volumes)
 data
-uploads
 logs
 .env
 .env.*
