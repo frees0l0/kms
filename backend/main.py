@@ -11,15 +11,33 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.database import engine, Base
+from core.database import engine, Base, SessionLocal
 from core.document_store import DocumentStore
-from core.config import settings
-from utils.logging import setup_logging, log_warning, log_error
+from utils.logging import setup_logging, log_error
 from api.v1 import auth, bot, admin, analytics
 from services.telegram import get_telegram_service
 
 # Setup logging
 logger = setup_logging()
+
+
+def _create_default_intent_spaces():
+    """Create default intent spaces if they don't exist."""
+    from models import IntentSpace
+    from sqlalchemy import select
+    default_intents = [
+        {"name": "General", "description": "General knowledge and common questions", "keywords": "general,help,info"},
+        {"name": "HR", "description": "Human resources, policies, benefits, and employee matters", "keywords": "hr,human resources,employee,benefits,policy,leave,vacation"},
+        {"name": "Legal", "description": "Legal matters, contracts, compliance, and regulations", "keywords": "legal,law,contract,compliance,regulation,agreement"},
+        {"name": "Finance", "description": "Financial matters, budgets, expenses, and accounting", "keywords": "finance,budget,expense,cost,accounting,payment,invoice"},
+    ]
+    with SessionLocal() as db:
+        for intent_data in default_intents:
+            result = db.execute(select(IntentSpace).where(IntentSpace.name == intent_data["name"]))
+            if not result.scalar_one_or_none():
+                db.add(IntentSpace(**intent_data))
+                logger.info(f"Created default intent space: {intent_data['name']}")
+        db.commit()
 
 
 @asynccontextmanager
@@ -35,6 +53,9 @@ async def lifespan(_app: FastAPI):
         doc_store.initialize()
     except Exception as e:
         log_error(f"Failed to initialize document store: {e}")
+
+    # Create default intent spaces if they don't exist
+    _create_default_intent_spaces()
 
     # Start Telegram polling
     telegram = get_telegram_service()
