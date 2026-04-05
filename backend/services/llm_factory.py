@@ -5,6 +5,7 @@ LLM Factory - Unified LLM client supporting OpenAI and compatible APIs.
 import logging
 from typing import Any, List
 
+import httpx
 import numpy as np
 import openai
 
@@ -51,19 +52,19 @@ class OpenAIClient:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url.rstrip("/"),
+            http_client=httpx.AsyncClient()
+        )
 
     async def generate(self, messages: Any) -> str:
         """
         Generate a chat completion asynchronously.
         messages: List of {"role": "user"/"assistant"/"system", "content": str}
         """
-        client = openai.AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
-
         try:
-            response = await client.chat.completions.create(
+            response = await self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,  # type: ignore
                 temperature=0.7,
@@ -89,19 +90,19 @@ class EmbeddingClient:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url.rstrip("/"),
+            http_client=httpx.AsyncClient()
+        )
 
     async def embed(self, text: str) -> List[float]:
         """
         Generate embeddings asynchronously.
         Returns a list of floats (embedding dimensions).
         """
-        client = openai.AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
-
         try:
-            response = await client.embeddings.create(
+            response = await self._client.embeddings.create(
                 model=self.model,
                 input=text
             )
