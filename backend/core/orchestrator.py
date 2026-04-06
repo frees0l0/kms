@@ -100,7 +100,7 @@ async def process_query(
                     query_text=query_text,
                     query_embedding=query_embedding,
                     intent_id=intent_id,
-                    top_k=3
+                    top_k=2
                 )
             logger.info(f"Step 3 - Document retrieval: {sw.elapsed_ms}ms, chunks_found={len(retrieved_chunks)}")
 
@@ -168,7 +168,7 @@ async def _generate_rag_response(query: str, chunks: list, intent_name: str) -> 
     """
     # Build context from retrieved chunks
     context_parts = []
-    for i, chunk in enumerate(chunks[:3], 1):
+    for i, chunk in enumerate(chunks, 1):
         content = chunk.get("content", "")
         doc_name = chunk.get("document_name", "Unknown document")
         context_parts.append(f"[Document {i}] ({doc_name}):\n{content}")

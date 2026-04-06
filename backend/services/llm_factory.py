@@ -39,9 +39,10 @@ class LLMFactory:
             cls._embedding_client = EmbeddingClient(
                 api_key=settings.openai_api_key,
                 base_url=settings.openai_base_url,
-                model=settings.default_embedding_model
+                model=settings.default_embedding_model,
+                dimensions=settings.default_embedding_dim
             )
-            logger.info(f"Embedding client initialized: model={settings.default_embedding_model}")
+            logger.info(f"Embedding client initialized: model={settings.default_embedding_model}, dimensions={settings.default_embedding_dim}")
         return cls._embedding_client
 
 
@@ -86,10 +87,11 @@ class OpenAIClient:
 class EmbeddingClient:
     """OpenAI-compatible embedding client."""
 
-    def __init__(self, api_key: str, base_url: str, model: str):
+    def __init__(self, api_key: str, base_url: str, model: str, dimensions: int = 1024):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.dimensions = dimensions
         self._client = openai.AsyncOpenAI(
             api_key=api_key,
             base_url=base_url.rstrip("/"),
@@ -104,7 +106,8 @@ class EmbeddingClient:
         try:
             response = await self._client.embeddings.create(
                 model=self.model,
-                input=text
+                input=text,
+                dimensions=self.dimensions
             )
             return response.data[0].embedding
         except Exception as e:
