@@ -36,10 +36,21 @@ class DiscordService(discord.Client):
         logger.info(f"Discord message from {message.author}: '{message.content[:50]}...'")
 
         if message.author == self.user:
+            logger.info("Discord message ignored (from ourselves)")
             return
 
-        # Strip mention prefix from the start (e.g. "<@1490596279623880744> ")
-        content = re.sub(r"^<@\d+>\s*", "", message.content)
+        # Only respond if the bot is mentioned and it's the only mention
+        if len(message.mentions) > 1:
+            logger.info("Discord message ignored (multiple mentions)")
+            return
+        if self.user not in message.mentions:
+            logger.info("Discord message ignored (bot not mentioned)")
+            return
+
+        # Strip bot mention prefix (e.g. "<@1490596279623880744> ")
+        content = message.content
+        if self.user:
+            content = re.sub(rf"^<@{self.user.id}>\s*", "", content)
 
         try:
             if content.startswith('/hello'):
