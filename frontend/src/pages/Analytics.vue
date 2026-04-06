@@ -57,6 +57,8 @@
               :pagination="false"
               :loading="loadingDocs"
               size="small"
+              :max-height="160"
+              virtual-scroll
             />
           </div>
         </n-card>

@@ -61,9 +61,11 @@ import {
   BarChart as AnalyticsIcon,
   Library as LibraryIcon
 } from '@vicons/ionicons5'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const collapsed = ref(false)
 const activeKey = ref(route.name as string)
 
@@ -81,7 +83,7 @@ const themeOverrides = {
   }
 }
 
-const isLoggedIn = computed(() => !!localStorage.getItem('kms_token'))
+const isLoggedIn = computed(() => !!authStore.token)
 
 const renderIcon = (icon: typeof DashboardIcon) => () => h(NIcon, null, { default: () => h(icon) })
 
