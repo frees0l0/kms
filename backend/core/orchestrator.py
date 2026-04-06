@@ -73,8 +73,8 @@ async def process_query(
 
     with SessionLocal() as db:
         # Validate source
-        if source not in ("telegram", "teams"):
-            raise ValueError("Invalid source. Must be 'telegram' or 'teams'")
+        if source not in ("telegram", "discord", "teams"):
+            raise ValueError("Invalid source. Must be 'telegram', 'discord' or 'teams'")
 
         try:
             # 1. Classify intent

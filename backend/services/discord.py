@@ -3,6 +3,7 @@ Discord service for bot integration using discord.py.
 """
 
 import logging
+import re
 from typing import Optional
 
 import discord
@@ -37,14 +38,17 @@ class DiscordService(discord.Client):
         if message.author == self.user:
             return
 
+        # Strip mention prefix from the start (e.g. "<@1490596279623880744> ")
+        content = re.sub(r"^<@\d+>\s*", "", message.content)
+
         try:
-            if message.content.startswith('$hello'):
+            if content.startswith('/hello'):
                 await message.channel.send('Hello!')
                 return
 
             from core.orchestrator import process_query
             result = await process_query(
-                query_text=message.content,
+                query_text=content,
                 source="discord",
                 chat_id=str(message.author.id)
             )
