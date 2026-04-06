@@ -4,7 +4,10 @@ Microsoft Teams service for bot integration.
 
 import logging
 from typing import Dict, Any, Optional
+
 import httpx
+
+from core.config import settings
 
 logger = logging.getLogger("kms.teams")
 
@@ -14,14 +17,14 @@ class TeamsService:
 
     def __init__(
         self,
-        app_id: str,
-        app_secret: str,
-        tenant_id: str = "common"
+        app_id: Optional[str] = None,
+        app_secret: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ):
-        self.app_id = app_id
-        self.app_secret = app_secret
-        self.tenant_id = tenant_id
-        self.token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+        self.app_id = app_id or settings.teams_app_id or ""
+        self.app_secret = app_secret or settings.teams_app_secret or ""
+        self.tenant_id = tenant_id or settings.teams_tenant_id or "common"
+        self.token_url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
         self.api_base = "https://smba.trafficmanager.net/teams/v1.0"
 
     async def get_access_token(self) -> str:
@@ -47,7 +50,6 @@ class TeamsService:
         service_url: Optional[str] = None
     ) -> Dict[Any, Any]:
         """Send a message to a Teams conversation."""
-        self.reload_token()
         access_token = await self.get_access_token()
         base_url = service_url or self.api_base
 
@@ -86,26 +88,6 @@ class TeamsService:
             logger.error(f"Teams credential verification failed: {e}")
             return False
 
-    def reload_token(self):
-        """Reload Teams credentials from database Integration table."""
-        from core.database import SessionLocal
-        from models import Integration
-        from sqlalchemy import select
-        with SessionLocal() as db:
-            result = db.execute(
-                select(Integration.config).where(Integration.channel == "teams")
-            )
-            row = result.scalar_one_or_none()
-            if row:
-                self.app_id = row.get("app_id", "")
-                self.app_secret = row.get("app_secret", "")
-                self.tenant_id = row.get("tenant_id", "common")
-            else:
-                self.app_id = ""
-                self.app_secret = ""
-                self.tenant_id = "common"
-            self.token_url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
-
 
 # Global shared instance
 _teams_service: Optional["TeamsService"] = None
@@ -115,5 +97,5 @@ def get_teams_service() -> "TeamsService":
     """Get the global TeamsService instance."""
     global _teams_service
     if _teams_service is None:
-        _teams_service = TeamsService(app_id="", app_secret="", tenant_id="common")
+        _teams_service = TeamsService()
     return _teams_service

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # Frontend Integrations
     telegram_bot_token: Optional[str] = Field(default=None, alias="TELEGRAM_BOT_TOKEN")
+    discord_bot_token: Optional[str] = Field(default=None, alias="DISCORD_BOT_TOKEN")
     teams_app_id: Optional[str] = Field(default=None, alias="TEAMS_APP_ID")
     teams_app_secret: Optional[str] = Field(default=None, alias="TEAMS_APP_SECRET")
     teams_tenant_id: str = Field(default="common", alias="TEAMS_TENANT_ID")

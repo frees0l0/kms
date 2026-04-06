@@ -15,7 +15,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from core.database import get_db
-from models import QueryLog, Document, IntentSpace, Integration
+from models import QueryLog, Document, IntentSpace
 from schemas import (
     QueryLogListResponse, QueryLogResponse, AnalyticsStats,
     IntentDistributionResponse, IntentDistribution, TopDocumentsResponse,
@@ -255,33 +255,23 @@ def export_queries(
 
 
 @router.get("/dashboard-summary", response_model=DashboardSummary)
-def get_dashboard_summary(
+async def get_dashboard_summary(
     db=Depends(get_db),
     _current_user: dict = Depends(get_current_user)
 ):
     """Get aggregated data for dashboard cards."""
     # Frontend integrations
-    integrations_result = db.execute(select(Integration))
-    integrations = integrations_result.scalars().all()
+    from services.integrations import get_all_integrations
 
-    frontend_integrations = []
-    for integration in integrations:
-        config = integration.config or {}
-        if integration.channel == "telegram":
-            token = config.get("token", "")
-            hint = f"token ends with ...{token[-4:]}" if token else "not configured"
-        elif integration.channel == "teams":
-            app_id = config.get("app_id", "")
-            hint = f"app_id: {app_id[:8]}..." if app_id else "not configured"
-        else:
-            hint = "unknown"
-
-        frontend_integrations.append(IntegrationResponse(
-            channel=integration.channel,
-            is_active=integration.is_active,
-            last_test_at=integration.last_test_at,
-            config_hint=hint
-        ))
+    integrations = await get_all_integrations()
+    frontend_integrations = [
+        IntegrationResponse(
+            channel=i.channel,
+            is_active=i.is_active,
+            config_hint=i.config.get("hint", "unknown") if i.config else "unknown"
+        )
+        for i in integrations
+    ]
 
     # KB stats
     total_docs_result = db.execute(select(func.count()).select_from(Document))

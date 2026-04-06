@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from core.database import get_db, SessionLocal
 from core.document_store import DocumentStore
 from core.document_parser import DocumentParser
+from core.config import settings
 from models import Document, IntentSpace, Integration, QueryLog
 from schemas import (
     DocumentResponse, DocumentListResponse, IntentSpaceResponse, IntentSpaceListResponse,
@@ -25,6 +26,7 @@ from schemas import (
 from api.v1.auth import get_current_user
 from services.telegram import get_telegram_service
 from services.teams import get_teams_service
+from services.discord import get_discord_service
 
 logger = logging.getLogger("kms.admin")
 
@@ -477,33 +479,22 @@ def get_intent_queries(
 # ============ Integration Endpoints ============
 
 @router.get("/integrations", response_model=IntegrationListResponse)
-def list_integrations(
-    db=Depends(get_db),
+async def list_integrations(
     _current_user: dict = Depends(get_current_user)
 ):
     """Get all integration configurations."""
-    result = db.execute(select(Integration))
-    integrations = result.scalars().all()
+    from services.integrations import get_all_integrations
 
-    items = []
-    for integration in integrations:
-        # Create config hint
-        config = integration.config or {}
-        if integration.channel == "telegram":
-            token = config.get("token", "")
-            hint = f"token ends with ...{token[-4:]}" if token else "not configured"
-        elif integration.channel == "teams":
-            app_id = config.get("app_id", "")
-            hint = f"app_id: {app_id[:8]}..." if app_id else "not configured"
-        else:
-            hint = "unknown"
+    integrations = await get_all_integrations()
 
-        items.append(IntegrationResponse(
-            channel=integration.channel,
-            is_active=integration.is_active,
-            last_test_at=integration.last_test_at,
-            config_hint=hint
-        ))
+    items = [
+        IntegrationResponse(
+            channel=i.channel,
+            is_active=i.is_active,
+            config_hint=i.config.get("hint", "unknown") if i.config else "unknown"
+        )
+        for i in integrations
+    ]
 
     return IntegrationListResponse(data=items)
 
@@ -583,39 +574,39 @@ async def test_integration(
     _current_user: dict = Depends(get_current_user)
 ):
     """Test an integration by verifying credentials and connectivity."""
-    if channel not in ("telegram", "teams"):
+    if channel not in ("telegram", "teams", "discord"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid channel")
 
-    result = db.execute(select(Integration).where(Integration.channel == channel))
-    integration = result.scalar_one_or_none()
-
-    if not integration or not integration.config:
-        return TestResponse(status="error", message="Integration not configured")
+    error_message = None
 
     try:
         if channel == "telegram":
-            # Test Telegram bot - verify token by getting bot info
+            if not settings.telegram_bot_token:
+                error_message = "Telegram bot token not configured"
+                return TestResponse(status="error", message=error_message)
             telegram = get_telegram_service()
             await telegram.get_me()
-            integration.is_active = True
         elif channel == "teams":
-            # Test Teams - verify credentials by obtaining access token
+            if not settings.teams_app_id or not settings.teams_app_secret:
+                error_message = "Teams credentials not configured"
+                return TestResponse(status="error", message=error_message)
             teams = get_teams_service()
             is_valid = await teams.verify_credentials()
             if not is_valid:
-                return TestResponse(status="error", message="Failed to authenticate with Teams")
-            integration.is_active = True
+                error_message = "Failed to authenticate with Teams"
+                return TestResponse(status="error", message=error_message)
+        elif channel == "discord":
+            if not settings.discord_bot_token:
+                error_message = "Discord bot token not configured"
+                return TestResponse(status="error", message=error_message)
+            discord_bot = get_discord_service()
+            if not discord_bot.is_ready():
+                error_message = "Discord bot not connected"
+                return TestResponse(status="error", message=error_message)
 
-        # Update last_test_at on success
-        integration.last_test_at = datetime.now(timezone.utc)
-        db.commit()
         logger.info(f"Integration test passed: channel={channel}")
-
         return TestResponse(status="success", message="Integration test passed successfully")
 
     except Exception as e:
-        # Mark as inactive on failure
-        integration.is_active = False
-        db.commit()
         logger.error(f"Integration test failed: channel={channel}, error={e}")
         return TestResponse(status="error", message=f"Test failed: {str(e)}")

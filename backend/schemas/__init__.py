@@ -96,7 +96,6 @@ class TeamsConfig(BaseModel):
 class IntegrationResponse(BaseModel):
     channel: str
     is_active: bool
-    last_test_at: Optional[datetime] = None
     config_hint: str
 
 

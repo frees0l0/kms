@@ -88,4 +88,3 @@ class Integration(Base):
     channel: Mapped[str] = mapped_column(String(20), unique=True)  # telegram, teams
     config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Encrypted token/webhook URL
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
-    last_test_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

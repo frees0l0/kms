@@ -63,7 +63,6 @@ async def teams_webhook(request: dict):
     async def process_and_reply():
         try:
             teams = get_teams_service()
-            teams.reload_token()
 
             result = await process_query(
                 query_text=message_text,

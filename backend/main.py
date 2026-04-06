@@ -11,11 +11,13 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.config import settings
 from core.database import engine, Base, SessionLocal
 from core.document_store import DocumentStore
 from utils.logging import setup_logging, log_error
 from api.v1 import auth, bot, admin, analytics
 from services.telegram import get_telegram_service
+from services.discord import get_discord_service
 
 # Setup logging
 logger = setup_logging()
@@ -57,17 +59,32 @@ async def lifespan(_app: FastAPI):
     # Create default intent spaces if they don't exist
     _create_default_intent_spaces()
 
-    # Start Telegram polling
-    telegram = get_telegram_service()
-    polling_task = asyncio.create_task(telegram.start_polling())
-    logger.info("Telegram polling started")
+    # Start Telegram bot
+    telegram_bot = get_telegram_service()
+    telegram_task = None
+    if settings.telegram_bot_token:
+        telegram_task = asyncio.create_task(telegram_bot.start())
+        logger.info("Telegram bot task started")
+
+    # Start Discord bot
+    discord_bot = get_discord_service()
+    discord_task = None
+    if settings.discord_bot_token:
+        discord_task = asyncio.create_task(discord_bot._start())
+        logger.info("Discord bot task started")
 
     yield
 
     # Shutdown Telegram polling
-    telegram.stop_polling()
-    await polling_task
-    logger.info("Telegram polling stopped")
+    if telegram_task:
+        telegram_bot.stop()
+        await telegram_task
+        logger.info("Telegram bot stopped")
+
+    # Shutdown Discord bot
+    if discord_task:
+        await discord_bot.close()
+        logger.info("Discord bot stopped")
 
 
 app = FastAPI(

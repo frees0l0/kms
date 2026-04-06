@@ -29,6 +29,7 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 cryptography>=42.0.2
 
-# Telegram/Teams
-aiogram>=3.4.1
-python-telegram-bot>=21.0.1
+# Bot Integrations
+# aiogram>=3.4.1
+# python-telegram-bot>=21.0.1
+discord.py>=2.3.0
