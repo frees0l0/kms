@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Intent Classification
     intent_confidence_threshold: float = Field(default=0.7, alias="INTENT_CONFIDENCE_THRESHOLD")
 
+    # MinerU
+    mineru_api_token: str = Field(default="", alias="MINERU_API_TOKEN")
+
     # PaddleOCR-VL
     paddle_ocr_vl_api_token: str = Field(default="", alias="PADDLE_OCR_VL_API_TOKEN")
 

@@ -2,17 +2,25 @@
 Factory for getting the appropriate document parser.
 """
 
+import logging
+
 from core.document_parser import DocumentParser
+
+logger = logging.getLogger("kms.parser_factory")
 
 
 def get_document_parser() -> "DocumentParser":
     """Return appropriate parser based on settings.
 
-    Uses PaddleOCR-VL API when PADDLE_OCR_VL_API_TOKEN is set,
-    otherwise falls back to the local DocumentParser.
+    Priority: MinerU > PaddleOCR-VL > DocumentParser.
     """
     from core.config import settings
+    if settings.mineru_api_token:
+        from core.mineru_parser import MinerUParser
+        logger.info("Using MinerU parser")
+        return MinerUParser(api_token=settings.mineru_api_token)
     if settings.paddle_ocr_vl_api_token:
         from core.paddle_ocr_vl_parser import PaddleOCRVLParser
+        logger.info("Using PaddleOCR-VL parser")
         return PaddleOCRVLParser(api_token=settings.paddle_ocr_vl_api_token)
     return DocumentParser()

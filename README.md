@@ -5,7 +5,7 @@ AI-powered knowledge management system with multi-channel integrations (Telegram
 ## Features
 
 - **Multi-Channel Access** — Query your knowledge base from Telegram or Discord chat
-- **Document Knowledge Base** — Upload PDF/DOCX documents; automatic parsing, chunking, and vectorization
+- **Document Knowledge Base** — Upload PDF/DOCX documents; automatic parsing (MinerU / PaddleOCR-VL / local), chunking, and vectorization
 - **Intent Classification** — AI classifies queries and routes them to the right intent space (HR, Legal, Finance, etc.)
 - **Hybrid Search** — Combines full-text search (FTS5) and semantic vector search (sqlitevec) with configurable weights
 - **Admin Dashboard** — Manage documents, intent spaces, integrations, and view analytics
@@ -69,6 +69,8 @@ docker compose up --build
 | `DISCORD_BOT_TOKEN`      | Discord bot token                         | —                          |
 | `HYBRID_WEIGHT_TEXT`     | FTS5 weight in hybrid search             | `0.3`                      |
 | `HYBRID_WEIGHT_VECTOR`   | Vector weight in hybrid search           | `0.7`                      |
+| `MINERU_API_TOKEN`       | MinerU API token (high-quality PDF/DOCX parsing) | —                 |
+| `PADDLE_OCR_VL_API_TOKEN`| PaddleOCR-VL API token (百度云 OCR parsing) | —                        |
 
 ## Integrations
 
@@ -84,6 +86,18 @@ docker compose up --build
 2. Enable **Message Content Intent** under "Bot" settings
 3. Set `DISCORD_BOT_TOKEN` environment variable
 4. The bot responds when **mentioned** (single mention only; `@bot hello`)
+
+## Document Parsing
+
+Three document parsers are available. The factory selects the first available in priority order:
+
+| Parser | Env Variable | Notes |
+|--------|-------------|-------|
+| **MinerU** | `MINERU_API_TOKEN` | Highest priority; high-quality parsing via [mineru.net](https://mineru.net), returns Markdown in ZIP |
+| **PaddleOCR-VL** | `PADDLE_OCR_VL_API_TOKEN` | [百度智能云](https://cloud.baidu.com/doc/OCR/s/7mh8u7ruk) async OCR parsing |
+| **DocumentParser** | — | Fallback; local text extraction via `pypdf` / `python-docx` |
+
+When neither token is set, the built-in `DocumentParser` is used — it extracts text directly from digitally-born PDFs and DOCX files without OCR capabilities.
 
 ## AI Usage Scenarios
 
@@ -115,7 +129,10 @@ backend/
 │   ├── orchestrator.py      # RAG pipeline
 │   ├── classifier.py        # Intent classification
 │   ├── hybrid_retriever.py # FTS5 + vector hybrid search
-│   ├── document_parser.py   # PDF/DOCX parsing
+│   ├── document_parser.py   # PDF/DOCX parsing (base)
+│   ├── paddle_ocr_vl_parser.py  # PaddleOCR-VL cloud parser
+│   ├── mineru_parser.py     # MinerU cloud parser
+│   ├── parser_factory.py    # Parser selection by env token
 │   ├── document_store.py    # SQLite storage
 │   └── config.py            # Settings
 ├── models/              # SQLAlchemy ORM models
