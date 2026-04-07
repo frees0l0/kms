@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from core.database import get_db, SessionLocal
 from core.document_store import DocumentStore
-from core.document_parser import DocumentParser
+from core.parser_factory import get_document_parser
 from core.config import settings
 from models import Document, IntentSpace, Integration, QueryLog
 from schemas import (
@@ -108,7 +108,7 @@ def process_document_background(document_id: int, file_path: str):
     with SessionLocal() as db:
         try:
             # Parse document (sync - runs in threadpool via FastAPI background_tasks)
-            parser = DocumentParser()
+            parser = get_document_parser()
             chunks_data = parser.parse(file_path)
 
             # Delete existing chunks and store new ones

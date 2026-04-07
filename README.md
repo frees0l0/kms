@@ -62,7 +62,7 @@ docker compose up --build
 | `JWT_SECRET_KEY`         | Secret for signing JWTs                  | —                          |
 | `OPENAI_API_KEY`         | OpenAI API key                          | —                          |
 | `OPENAI_BASE_URL`        | API base URL (for proxies/DeepSeek)     | `https://api.openai.com/v1`|
-| `DEFAULT_LLM_MODEL`       | Default chat model                       | `gpt-4o-mini`              |
+| `DEFAULT_LLM_MODEL`       | Default chat model                       | `gpt-4o`                   |
 | `DEFAULT_EMBEDDING_MODEL`| Embedding model                          | `text-embedding-3-small`   |
 | `DEFAULT_EMBEDDING_DIM`  | Embedding dimensions                     | `1024`                     |
 | `TELEGRAM_BOT_TOKEN`     | Telegram bot token                       | —                          |

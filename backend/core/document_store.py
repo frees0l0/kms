@@ -140,7 +140,7 @@ class DocumentStore:
         """
         # Extract word tokens and join with spaces
         tokens = re.findall(r'\w+', query, re.UNICODE)
-        sanitized = ' '.join(tokens)
+        sanitized = ' OR '.join(tokens)
 
         with SessionLocal() as db:
             result = db.execute(
