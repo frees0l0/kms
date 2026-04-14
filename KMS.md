@@ -738,7 +738,7 @@ The implementation lives in `core/hybrid_retriever.py` and is used by the RAG en
 ```bash
 # Backend
 cd backend
-python -m venv venv
+python -m venv .venv
 source venv/bin/activate
 pip install -r requirements.txt
 # Ensure sqlitevec is installed (pip install sqlite-vec)

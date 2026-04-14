@@ -33,7 +33,7 @@ AI-powered knowledge management system with multi-channel integrations (Telegram
 ```bash
 cd backend
 cp .env.example .env          # Fill in your values — see "Environment Variables" below
-python -m venv venv
+python -m venv .venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
@@ -60,8 +60,8 @@ docker compose up --build
 | `ADMIN_USERNAME`         | Admin login username                     | `admin`                    |
 | `ADMIN_PASSWORD_HASH`    | bcrypt hash of admin password            | —                          |
 | `JWT_SECRET_KEY`         | Secret for signing JWTs                  | —                          |
-| `OPENAI_API_KEY`         | OpenAI API key                          | —                          |
-| `OPENAI_BASE_URL`        | API base URL (for proxies/DeepSeek)     | `https://api.openai.com/v1`|
+| `OPENAI_API_KEY`         | Model API key                            | —                          |
+| `OPENAI_BASE_URL`        | Model API base URL (for proxies/DeepSeek) | `https://api.openai.com/v1`|
 | `DEFAULT_LLM_MODEL`       | Default chat model                       | `gpt-4o`                   |
 | `DEFAULT_EMBEDDING_MODEL`| Embedding model                          | `text-embedding-3-small`   |
 | `DEFAULT_EMBEDDING_DIM`  | Embedding dimensions                     | `1024`                     |
@@ -70,7 +70,7 @@ docker compose up --build
 | `HYBRID_WEIGHT_TEXT`     | FTS5 weight in hybrid search             | `0.3`                      |
 | `HYBRID_WEIGHT_VECTOR`   | Vector weight in hybrid search           | `0.7`                      |
 | `MINERU_API_TOKEN`       | MinerU API token (high-quality PDF/DOCX parsing) | —                 |
-| `PADDLE_OCR_VL_API_TOKEN`| PaddleOCR-VL API token (百度云 OCR parsing) | —                        |
+| `PADDLE_OCR_VL_API_TOKEN`| PaddleOCR-VL API token (the SOTA solution for PDF/DOCX parsing) | —                        |
 
 ## Integrations
 
@@ -93,8 +93,8 @@ Three document parsers are available. The factory selects the first available in
 
 | Parser | Env Variable | Notes |
 |--------|-------------|-------|
-| **MinerU** | `MINERU_API_TOKEN` | Highest priority; high-quality parsing via [mineru.net](https://mineru.net), returns Markdown in ZIP |
-| **PaddleOCR-VL** | `PADDLE_OCR_VL_API_TOKEN` | [百度智能云](https://cloud.baidu.com/doc/OCR/s/7mh8u7ruk) async OCR parsing |
+| **MinerU** | `MINERU_API_TOKEN` | High-quality document parsing via [mineru.net](https://mineru.net) |
+| **PaddleOCR-VL** | `PADDLE_OCR_VL_API_TOKEN` | The SOTA solution for document parsing via [Baidu Cloud](https://cloud.baidu.com/doc/OCR/s/7mh8u7ruk) |
 | **DocumentParser** | — | Fallback; local text extraction via `pypdf` / `python-docx` |
 
 When neither token is set, the built-in `DocumentParser` is used — it extracts text directly from digitally-born PDFs and DOCX files without OCR capabilities.

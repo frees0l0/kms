@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from core.database import get_db, SessionLocal
 from core.document_store import DocumentStore
-from core.parser_factory import get_document_parser
+from parsers.parser_factory import get_document_parser
 from core.config import settings
 from models import Document, IntentSpace, Integration, QueryLog
 from schemas import (

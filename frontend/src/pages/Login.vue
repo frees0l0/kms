@@ -1,5 +1,5 @@
 <template>
-  <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+  <div style="display: flex; height: 100%; justify-content: center; align-items: center;">
     <n-card style="width: 400px;" title="KMS Login">
       <n-form ref="formRef" :model="form" :rules="rules">
         <n-form-item path="username" label="Username">

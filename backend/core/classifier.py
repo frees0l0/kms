@@ -84,9 +84,8 @@ Confidence should reflect how certain you are (higher = more confident).
 
             # If no match, default to "General" intent
             if not matched_space:
+                logger.warning("LLM classification returned unknown intent, falling back to default")
                 result = self._fallback_result(intent_spaces)
-                result["_llm_intent"] = intent_name
-                logger.info(f"Classification result (fallback): intent_id={result['intent_id']}, intent_name={result['intent_name']}, confidence={result['confidence']}, LLM_intent={intent_name}")
                 return result
 
             logger.info(f"Classification result: intent_id={matched_space.id}, intent_name={matched_space.name}, confidence={confidence}")

@@ -5,13 +5,12 @@ PaddleOCR-VL document parser using Baidu Cloud API.
 import base64
 import time
 import logging
-import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 import httpx
 
-from core.document_parser import DocumentParser
+from parsers.document_parser import DocumentParser
 
 logger = logging.getLogger("kms.paddle_ocr")
 
@@ -151,83 +150,3 @@ class PaddleOCRVLParser(DocumentParser):
             if page_text:
                 texts.append(f"[Page {i}]\n{page_text}")
         return "\n\n".join(texts)
-
-    def _build_chunks(self, markdown_content: str, file_extension: str) -> List[Dict[str, Any]]:
-        """Parse markdown content, add markers, chunk, and return in DocumentParser format."""
-        plain_text = self._markdown_to_text(markdown_content)
-
-        if file_extension == ".pdf":
-            marked_text = self._add_page_markers(plain_text)
-        else:
-            marked_text = self._add_paragraph_markers(plain_text)
-
-        text_chunks = self._chunk_text(marked_text)
-
-        logger.info(f"PaddleOCR-VL parsed into {len(text_chunks)} chunks")
-        chunks = []
-        for i, chunk_text in enumerate(text_chunks, 1):
-            if file_extension == ".pdf":
-                page_match = re.search(r"\[Page (\d+)\]", chunk_text)
-                page = int(page_match.group(1)) if page_match else 1
-                clean_content = re.sub(r"\[Page \d+\]\n?", "", chunk_text).strip()
-                chunks.append({
-                    "content": clean_content,
-                    "metadata": {
-                        "page": page,
-                        "chunk_index": i,
-                        "source": "pdf"
-                    }
-                })
-            else:
-                para_matches = re.findall(r"\[Para (\d+)\]", chunk_text)
-                if para_matches:
-                    start_para = min(int(p) for p in para_matches)
-                    end_para = max(int(p) for p in para_matches)
-                    para_range = f"{start_para}-{end_para}"
-                else:
-                    para_range = "unknown"
-                clean_content = re.sub(r"\[Para \d+\]", "", chunk_text).strip()
-                chunks.append({
-                    "content": clean_content,
-                    "metadata": {
-                        "paragraph_range": para_range,
-                        "chunk_index": i,
-                        "source": "docx"
-                    }
-                })
-
-        return chunks
-
-    def _markdown_to_text(self, markdown: str) -> str:
-        """Convert markdown to plain text."""
-        text = re.sub(r"!\[.*?\]\(.*?\)", "", markdown)
-        text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
-        text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
-        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
-        text = re.sub(r"\*(.+?)\*", r"\1", text)
-        text = re.sub(r"__(.+?)__", r"\1", text)
-        text = re.sub(r"_(.+?)_", r"\1", text)
-        text = re.sub(r"```[\s\S]*?```", "", text)
-        text = re.sub(r"`(.+?)`", r"\1", text)
-        text = re.sub(r"^[-*_]{3,}$", "", text, flags=re.MULTILINE)
-        text = text.strip()
-        return text
-
-    def _add_page_markers(self, text: str) -> str:
-        """Try to detect page boundaries in the text."""
-        if re.search(r"---.*?---", text, re.DOTALL):
-            pages = re.split(r"(?=\n---\n)", text)
-            if len(pages) > 1:
-                return "\n\n".join(
-                    f"[Page {i}]\n{page.strip()}" for i, page in enumerate(pages, 1)
-                )
-        return f"[Page 1]\n{text}"
-
-    def _add_paragraph_markers(self, text: str) -> str:
-        """Split text into paragraphs and add markers."""
-        paragraphs = [p.strip() for p in re.split(r"\n\n+", text) if p.strip()]
-        if not paragraphs:
-            return text
-        return "\n\n".join(
-            f"[Para {i}]\n{p}" for i, p in enumerate(paragraphs, 1)
-        )
