@@ -24,8 +24,8 @@ async def main():
         sys.exit(1)
 
     query_text = args[0]
-    source = args[1] if len(args) > 1 else "telegram"
-    chat_id = args[2] if len(args) > 2 else "cli"
+    source = args[1] if len(args) > 1 else "cli"
+    chat_id = args[2] if len(args) > 2 else "admin"
 
     print(f"\n--- Processing query ---")
     print(f"Query: {query_text}")

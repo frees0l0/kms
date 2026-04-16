@@ -76,7 +76,6 @@ async def teams_webhook(request: dict):
         except Exception as e:
             logger.error(f"Teams webhook: failed to process conversation_id={conversation_id}: {e}")
 
-    async with asyncio.TaskGroup() as tg:
-        tg.create_task(process_and_reply())
+    asyncio.create_task(process_and_reply())
 
     return {"status": "accepted"}

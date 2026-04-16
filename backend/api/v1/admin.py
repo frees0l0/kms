@@ -103,7 +103,7 @@ async def upload_document(
     )
 
 
-def process_document_background(document_id: int, file_path: str):
+async def process_document_background(document_id: int, file_path: str):
     """Background task to process uploaded document."""
     with SessionLocal() as db:
         try:
@@ -114,7 +114,7 @@ def process_document_background(document_id: int, file_path: str):
             # Delete existing chunks and store new ones
             doc_store = DocumentStore()
             doc_store.delete_document(document_id)
-            asyncio.run(doc_store.store_document(document_id, chunks_data))
+            await doc_store.store_document(document_id, chunks_data)
 
             # Update document status
             db.execute(
@@ -317,12 +317,14 @@ def list_intents(
         doc_count = doc_count_result.scalar() or 0
 
         # Calculate accuracy from query logs
-        accuracy_result = db.execute(
-            select(func.avg(QueryLog.confidence))
-            .where(QueryLog.intent_id == intent.id)
-            .where(QueryLog.user_feedback == "correct")
-        )
-        accuracy = accuracy_result.scalar()
+        correct_count = db.execute(
+            select(func.count()).where(QueryLog.intent_id == intent.id).where(QueryLog.user_feedback == "correct")
+        ).scalar() or 0
+        wrong_count = db.execute(
+            select(func.count()).where(QueryLog.intent_id == intent.id).where(QueryLog.user_feedback == "wrong")
+        ).scalar() or 0
+        total_count = correct_count + wrong_count
+        accuracy = (correct_count / total_count) if total_count > 0 else None
 
         items.append(IntentSpaceResponse(
             id=intent.id,
@@ -500,7 +502,7 @@ async def list_integrations(
 
 
 @router.post("/integrations/telegram", response_model=IntegrationResponse)
-async def configure_telegram(
+def configure_telegram(
     config: TelegramConfig,
     db=Depends(get_db),
     _current_user: dict = Depends(get_current_user)
@@ -531,7 +533,7 @@ async def configure_telegram(
 
 
 @router.post("/integrations/teams", response_model=IntegrationResponse)
-async def configure_teams(
+def configure_teams(
     config: TeamsConfig,
     db=Depends(get_db),
     _current_user: dict = Depends(get_current_user)

@@ -59,7 +59,7 @@ async def process_query(
 
     Args:
         query_text: The user's query string
-        source: Message source ('telegram' or 'teams')
+        source: Message source ('telegram', 'discord', 'teams' or 'cli')
         chat_id: User/bot chat identifier
 
     Returns:
@@ -73,8 +73,8 @@ async def process_query(
 
     with SessionLocal() as db:
         # Validate source
-        if source not in ("telegram", "discord", "teams"):
-            raise ValueError("Invalid source. Must be 'telegram', 'discord' or 'teams'")
+        if source not in ("telegram", "discord", "teams", "cli"):
+            raise ValueError("Invalid source. Must be 'telegram', 'discord', 'teams' or 'cli'")
 
         try:
             # 1. Classify intent
