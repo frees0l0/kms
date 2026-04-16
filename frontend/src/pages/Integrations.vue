@@ -138,9 +138,6 @@ onMounted(loadIntegrations)
 .integration-card {
   transition: all 0.2s;
 }
-.integration-card:hover {
-  border-color: var(--primary-color);
-}
 .integration-card.active {
   border-color: #18a058;
 }

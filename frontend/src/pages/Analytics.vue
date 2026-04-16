@@ -80,6 +80,7 @@
         :pagination="pagination"
         :loading="loading"
         :row-key="(row: any) => row.id"
+        remote
         @update:page="handlePageChange"
       />
     </n-card>
@@ -87,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, h } from 'vue'
+import { ref, reactive, computed, watch, onMounted, h } from 'vue'
 import {
   NGrid, NGi, NCard, NDataTable, NSpace, NButton, NInput, NTag,
   DataTableColumns, useMessage, NSelect, NPopover
@@ -111,11 +112,11 @@ const intentOptions = computed(() =>
   intentSpaces.value.map(i => ({ label: i.name, value: i.id }))
 )
 
-const pagination = ref({ page: 1, pageSize: 20, total: 0 })
+const pagination = reactive({ page: 1, pageSize: 20, itemCount: 0 })
 
 // Reset to page 1 when search changes
 watch(searchQuery, () => {
-  pagination.value.page = 1
+  pagination.page = 1
   loadQueries()
 })
 
@@ -215,12 +216,12 @@ async function loadTopDocuments() {
 async function loadQueries() {
   loading.value = true
   try {
-    const params: any = { page: pagination.value.page, page_size: pagination.value.pageSize }
+    const params: any = { page: pagination.page, page_size: pagination.pageSize }
     if (searchQuery.value) params.search = searchQuery.value
 
     const response = await api.get('/analytics/queries', { params })
     queries.value = response.data.items
-    pagination.value.total = response.data.total
+    pagination.itemCount = response.data.total
   } catch (e) {
     console.error('Failed to load queries:', e)
   } finally {
@@ -246,7 +247,7 @@ async function submitFeedback(queryId: number, feedback: 'correct' | 'wrong', co
 }
 
 function handlePageChange(page: number) {
-  pagination.value.page = page
+  pagination.page = page
   loadQueries()
 }
 
