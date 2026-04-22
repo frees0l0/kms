@@ -3,10 +3,10 @@ Document storage with SQLite FTS5 and sqlitevec for hybrid search.
 """
 
 import json
-import re
 import logging
 from typing import List, Dict, Any, Optional
 import numpy as np
+import spacy
 from sqlalchemy import text
 
 from core.config import settings
@@ -17,11 +17,59 @@ from services.llm_factory import LLMFactory
 logger = logging.getLogger("kms.docstore")
 
 
+class FTS5Preprocessor:
+    """
+    FTS5 text preprocessor using spaCy for tokenization.
+    Supports both Chinese and English text with stopword filtering.
+    """
+
+    def __init__(self):
+        # Load spaCy models with NER and parser disabled for speed
+        self.nlp_zh = spacy.load("zh_core_web_sm", disable=["ner", "parser"])
+        self.nlp_en = spacy.load("en_core_web_sm", disable=["ner", "parser"])
+
+    def preprocess(self, text: str) -> str:
+        """
+        Route text to the appropriate language processor.
+        Returns a space-separated string of processed tokens.
+        """
+        if self._is_chinese_dominant(text):
+            return self._process_chinese(text)
+        else:
+            return self._process_english(text)
+
+    def _is_chinese_dominant(self, text: str) -> bool:
+        """Check if Chinese characters make up more than 30% of the text."""
+        if not text:
+            return False
+        chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+        return chinese_chars / len(text) > 0.3
+
+    def _process_chinese(self, text: str) -> str:
+        """Tokenize Chinese text with spaCy, remove punctuation and stopwords."""
+        doc = self.nlp_zh(text)
+        tokens = [
+            token.text for token in doc
+            if not token.is_stop and not token.is_punct and len(token.text) > 1
+        ]
+        return " ".join(tokens)
+
+    def _process_english(self, text: str) -> str:
+        """Lemmatize English text, lowercase, remove stopwords and non-alpha tokens."""
+        doc = self.nlp_en(text)
+        tokens = [
+            token.lemma_.lower() for token in doc
+            if not token.is_stop and not token.is_punct and token.is_alpha
+        ]
+        return " ".join(tokens)
+
+
 class DocumentStore:
     """Manages document storage with FTS5 and vector embeddings."""
 
     def __init__(self):
         self.embedding_dim = settings.default_embedding_dim
+        self.preprocessor = FTS5Preprocessor()
 
     def initialize(self):
         """Initialize FTS5 and vec tables if they don't exist."""
@@ -80,7 +128,7 @@ class DocumentStore:
                 # Insert into fts_chunks (FTS5) with explicit rowid
                 db.execute(
                     text("INSERT INTO fts_chunks(rowid, content, chunk_id) VALUES (:rowid, :content, :chunk_id)"),
-                    {"rowid": db_chunk.id, "content": content, "chunk_id": f"{document_id}_{chunk_index}"}
+                    {"rowid": db_chunk.id, "content": self.preprocessor.preprocess(content), "chunk_id": f"{document_id}_{chunk_index}"}
                 )
 
                 # Store vector embedding if already generated
@@ -138,8 +186,10 @@ class DocumentStore:
         Full-text search using FTS5.
         Returns chunks with BM25 scores converted to similarity.
         """
-        # Extract word tokens and join with spaces
-        tokens = re.findall(r'\w+', query, re.UNICODE)
+        # Normalize query with spaCy preprocessor before FTS MATCH
+        normalized = self.preprocessor.preprocess(query)
+        # Use normalized tokens as OR-separated query terms
+        tokens = normalized.split() if normalized else []
         sanitized = ' OR '.join(tokens)
 
         with SessionLocal() as db:

@@ -36,6 +36,7 @@ cp .env.example .env          # Fill in your values — see "Environment Variabl
 python -m venv .venv
 source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+python -m spacy download zh_core_web_sm en_core_web_sm  # FTS5 Chinese/English tokenization
 uvicorn main:app --reload --port 8000
 ```
 
