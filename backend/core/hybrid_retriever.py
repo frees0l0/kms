@@ -8,7 +8,7 @@ import numpy as np
 
 from core.database import SessionLocal
 from core.config import settings
-from core.document_store import DocumentStore
+from core.orchestrator import get_doc_store
 
 logger = logging.getLogger("kms.retriever")
 
@@ -23,12 +23,13 @@ class HybridRetriever:
         self,
         text_weight: Optional[float] = None,
         vector_weight: Optional[float] = None,
-        top_k: int = 50
+        top_k: int = 50,
+        doc_store: Optional[Any] = None
     ):
         self.text_weight = text_weight or settings.hybrid_weight_text
         self.vector_weight = vector_weight or settings.hybrid_weight_vector
         self.top_k = top_k
-        self.doc_store = DocumentStore()
+        self.doc_store = doc_store or get_doc_store()
 
     def retrieve(
         self,

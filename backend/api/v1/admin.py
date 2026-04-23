@@ -14,7 +14,7 @@ from sqlalchemy import select, func, update
 from sqlalchemy.orm import selectinload
 
 from core.database import get_db, SessionLocal
-from core.document_store import DocumentStore
+from core.orchestrator import get_doc_store
 from parsers.parser_factory import get_document_parser
 from core.config import settings
 from models import Document, IntentSpace, Integration, QueryLog
@@ -112,7 +112,7 @@ async def process_document_background(document_id: int, file_path: str):
             chunks_data = parser.parse(file_path)
 
             # Delete existing chunks and store new ones
-            doc_store = DocumentStore()
+            doc_store = get_doc_store()
             doc_store.delete_document(document_id)
             await doc_store.store_document(document_id, chunks_data)
 
@@ -207,7 +207,7 @@ def delete_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     # Delete chunks and vectors
-    doc_store = DocumentStore()
+    doc_store = get_doc_store()
     doc_store.delete_document(document_id)
 
     # Delete document record

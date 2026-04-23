@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.database import engine, Base, SessionLocal
-from core.document_store import DocumentStore
+from core.orchestrator import get_doc_store
 from utils.logging import setup_logging, log_error
 from api.v1 import auth, bot, admin, analytics
 from services.telegram import get_telegram_service
@@ -51,7 +51,7 @@ async def lifespan(_app: FastAPI):
 
     # Initialize document store (create FTS tables if needed)
     try:
-        doc_store = DocumentStore()
+        doc_store = get_doc_store()
         doc_store.initialize()
     except Exception as e:
         log_error(f"Failed to initialize document store: {e}")
