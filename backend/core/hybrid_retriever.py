@@ -7,8 +7,8 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 
 from core.database import SessionLocal
+from core.document_store import get_doc_store
 from core.config import settings
-from core.orchestrator import get_doc_store
 
 logger = logging.getLogger("kms.retriever")
 

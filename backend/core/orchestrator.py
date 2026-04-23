@@ -12,7 +12,7 @@ from utils.timing import StopWatch
 
 from core.classifier import IntentClassifier
 from core.hybrid_retriever import HybridRetriever
-from core.document_store import DocumentStore
+from core.document_store import get_doc_store
 from models import QueryLog
 from services.llm_factory import LLMFactory
 
@@ -22,7 +22,6 @@ logger = logging.getLogger("kms.orchestrator")
 # Lazy initialization of AI components
 _classifier = None
 _retriever = None
-_doc_store = None
 
 
 def get_classifier() -> IntentClassifier:
@@ -39,14 +38,6 @@ def get_retriever() -> HybridRetriever:
     if _retriever is None:
         _retriever = HybridRetriever()
     return _retriever
-
-
-def get_doc_store() -> DocumentStore:
-    """Get global doc store"""
-    global _doc_store
-    if _doc_store is None:
-        _doc_store = DocumentStore()
-    return _doc_store
 
 
 async def process_query(

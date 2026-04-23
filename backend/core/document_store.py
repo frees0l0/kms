@@ -67,9 +67,18 @@ class FTS5Preprocessor:
 class DocumentStore:
     """Manages document storage with FTS5 and vector embeddings."""
 
+    _instance = None
+
     def __init__(self):
         self.embedding_dim = settings.default_embedding_dim
         self.preprocessor = FTS5Preprocessor()
+
+    @classmethod
+    def get_instance(cls) -> "DocumentStore":
+        """Get global DocumentStore singleton."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def initialize(self):
         """Initialize FTS5 and vec tables if they don't exist."""
@@ -298,3 +307,8 @@ class DocumentStore:
         llm = LLMFactory.get_embedding_model()
         embedding = await llm.embed(input_text)
         return np.array(embedding)
+
+
+def get_doc_store() -> DocumentStore:
+    """Get global doc store singleton."""
+    return DocumentStore.get_instance()

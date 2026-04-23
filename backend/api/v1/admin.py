@@ -3,7 +3,6 @@
 Admin endpoints - KB management, Intent spaces, Integrations.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -14,9 +13,9 @@ from sqlalchemy import select, func, update
 from sqlalchemy.orm import selectinload
 
 from core.database import get_db, SessionLocal
-from core.orchestrator import get_doc_store
-from parsers.parser_factory import get_document_parser
+from core.document_store import get_doc_store
 from core.config import settings
+from parsers.parser_factory import get_document_parser
 from models import Document, IntentSpace, Integration, QueryLog
 from schemas import (
     DocumentResponse, DocumentListResponse, IntentSpaceResponse, IntentSpaceListResponse,
