@@ -55,11 +55,11 @@ class FTS5Preprocessor:
         return " ".join(tokens)
 
     def _process_english(self, text: str) -> str:
-        """Lemmatize English text, lowercase, remove stopwords and non-alpha tokens."""
+        """Tokenize English text with spaCy, lemmatize, lowercase, remove punctuation and stopwords."""
         doc = self.nlp_en(text)
         tokens = [
             token.lemma_.lower() for token in doc
-            if not token.is_stop and not token.is_punct and token.is_alpha
+            if not token.is_stop and not token.is_punct
         ]
         return " ".join(tokens)
 

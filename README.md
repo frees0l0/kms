@@ -34,9 +34,10 @@ AI-powered knowledge management system with multi-channel integrations (Telegram
 cd backend
 cp .env.example .env          # Fill in your values — see "Environment Variables" below
 python -m venv .venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+source .venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python -m spacy download zh_core_web_sm en_core_web_sm  # FTS5 Chinese/English tokenization
+python -m spacy download zh_core_web_sm  # FTS5 Chinese tokenization
+python -m spacy download en_core_web_sm  # FTS5 English tokenization
 uvicorn main:app --reload --port 8000
 ```
 
