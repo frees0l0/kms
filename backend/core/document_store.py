@@ -2,6 +2,7 @@
 Document storage with SQLite FTS5 and sqlitevec for hybrid search.
 """
 
+import asyncio
 import json
 import logging
 from typing import List, Dict, Any, Optional
@@ -119,6 +120,11 @@ class DocumentStore:
                 except Exception as e:
                     logger.warning(f"embedding generation failed: {e}")
 
+        # Run database work in thread pool to avoid blocking event loop
+        await asyncio.to_thread(self._store_document_sync, document_id, chunks_data)
+
+    def _store_document_sync(self, document_id: int, chunks_data: List[Dict[str, Any]]):
+        """Synchronous helper for storing document chunks (runs in thread pool)."""
         with SessionLocal() as db:
             for chunk in chunks_data:
                 content = chunk["content"]

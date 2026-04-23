@@ -3,8 +3,9 @@
 Admin endpoints - KB management, Intent spaces, Integrations.
 """
 
+import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from pathlib import Path
 
@@ -104,40 +105,42 @@ async def upload_document(
 
 async def process_document_background(document_id: int, file_path: str):
     """Background task to process uploaded document."""
+    try:
+        # Parse document in thread pool to avoid blocking event loop
+        parser = get_document_parser()
+        chunks_data = await asyncio.to_thread(parser.parse, file_path)
+
+        # Delete existing chunks and store new ones
+        doc_store = get_doc_store()
+        await asyncio.to_thread(doc_store.delete_document, document_id)
+        await doc_store.store_document(document_id, chunks_data)
+
+        # Update document status to processed
+        await asyncio.to_thread(_update_document_status_sync, document_id, "processed")
+
+    except Exception as e:
+        logger.error(f"Document processing failed: document_id={document_id}, error={e}")
+        await asyncio.to_thread(_update_document_status_sync, document_id, "error", str(e))
+
+    else:
+        logger.info(f"Document processed successfully: document_id={document_id}")
+
+
+def _update_document_status_sync(document_id: int, status: str, error_message: Optional[str] = None):
+    """Synchronous helper to update document status (runs in thread pool)."""
     with SessionLocal() as db:
-        try:
-            # Parse document (sync - runs in threadpool via FastAPI background_tasks)
-            parser = get_document_parser()
-            chunks_data = parser.parse(file_path)
-
-            # Delete existing chunks and store new ones
-            doc_store = get_doc_store()
-            doc_store.delete_document(document_id)
-            await doc_store.store_document(document_id, chunks_data)
-
-            # Update document status
-            db.execute(
-                update(Document).where(Document.id == document_id).values(status="processed")
-            )
-            db.commit()
-
-        except Exception as e:
-            logger.error(f"Document processing failed: document_id={document_id}, error={e}")
+        if error_message:
             db.execute(
                 update(Document).where(Document.id == document_id).values(
-                    status="error",
-                    error_message=str(e)
+                    status=status,
+                    error_message=error_message
                 )
             )
-            db.commit()
-
         else:
-            logger.info(f"Document processed successfully: document_id={document_id}")
-
-        finally:
-            # Note: We intentionally don't delete the original file here
-            # because reparse needs it. The file is kept in UPLOAD_DIR.
-            pass
+            db.execute(
+                update(Document).where(Document.id == document_id).values(status=status)
+            )
+        db.commit()
 
 
 @router.get("/kb/documents", response_model=DocumentListResponse)
