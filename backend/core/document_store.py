@@ -121,11 +121,15 @@ class DocumentStore:
                     logger.warning(f"embedding generation failed: {e}")
 
         # Run database work in thread pool to avoid blocking event loop
-        await asyncio.to_thread(self._store_document_sync, document_id, chunks_data)
+        await asyncio.to_thread(self._store_chunks, document_id, chunks_data)
 
-    def _store_document_sync(self, document_id: int, chunks_data: List[Dict[str, Any]]):
-        """Synchronous helper for storing document chunks (runs in thread pool)."""
+    def _store_chunks(self, document_id: int, chunks_data: List[Dict[str, Any]]):
+        """Store chunks for a document after deleting old ones."""
         with SessionLocal() as db:
+            # Delete old chunks first
+            self._delete_chunks(db, document_id)
+
+            # Insert new chunks
             for chunk in chunks_data:
                 content = chunk["content"]
                 metadata = chunk.get("metadata", {})
@@ -163,38 +167,38 @@ class DocumentStore:
         """Delete all chunks for a document from chunks table, FTS5, and vector tables."""
         logger.info(f"Deleting document: document_id={document_id}")
         with SessionLocal() as db:
-            # Delete from chunks table (ORM)
-            result = db.execute(
-                text("SELECT id FROM chunks WHERE document_id = :document_id"),
+            self._delete_chunks(db, document_id)
+            db.commit()
+
+    def _delete_chunks(self, db, document_id: int):
+        """Delete all chunks for a document from all tables. Reusable internal method."""
+        result = db.execute(
+            text("SELECT id FROM chunks WHERE document_id = :document_id"),
+            {"document_id": document_id}
+        )
+        chunk_ids = [row[0] for row in result.all()]
+
+        if chunk_ids:
+            db.execute(
+                text("DELETE FROM chunks WHERE document_id = :document_id"),
                 {"document_id": document_id}
             )
-            chunk_ids = [row[0] for row in result.all()]
 
-            if chunk_ids:
-                db.execute(
-                    text("DELETE FROM chunks WHERE document_id = :document_id"),
-                    {"document_id": document_id}
-                )
+        pattern = f"{document_id}_%"
+        db.execute(
+            text("DELETE FROM fts_chunks WHERE chunk_id LIKE :pattern"),
+            {"pattern": pattern}
+        )
 
-            # Delete from FTS5
-            pattern = f"{document_id}_%"
-            db.execute(
-                text("DELETE FROM fts_chunks WHERE chunk_id LIKE :pattern"),
-                {"pattern": pattern}
-            )
-
-            # Delete from vec_chunks only if sqlite_vec is loaded
-            if settings.sqlite_vec_loaded:
+        if settings.sqlite_vec_loaded:
+            for chunk_id in chunk_ids:
                 try:
-                    for chunk_id in chunk_ids:
-                        db.execute(
-                            text("DELETE FROM vec_chunks WHERE rowid = :rowid"),
-                            {"rowid": chunk_id}
-                        )
+                    db.execute(
+                        text("DELETE FROM vec_chunks WHERE rowid = :rowid"),
+                        {"rowid": chunk_id}
+                    )
                 except Exception as e:
                     logger.warning(f"vector deletion failed: {e}")
-
-            db.commit()
 
     def search_fts(self, query: str, top_k: int = 50) -> List[Dict[str, Any]]:
         """

@@ -110,9 +110,8 @@ async def process_document_background(document_id: int, file_path: str):
         parser = get_document_parser()
         chunks_data = await asyncio.to_thread(parser.parse, file_path)
 
-        # Delete existing chunks and store new ones
+        # Store new chunks (delete old chunks is now handled inside store_document)
         doc_store = get_doc_store()
-        await asyncio.to_thread(doc_store.delete_document, document_id)
         await doc_store.store_document(document_id, chunks_data)
 
         # Update document status to processed
