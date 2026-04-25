@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Intent Space Cards -->
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
+    <n-grid :cols="gridCols" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
       <n-gi v-for="space in intentSpaces" :key="space.id">
         <n-card class="intent-card">
           <div class="intent-header">
@@ -43,7 +43,7 @@
     </n-grid>
 
     <!-- Create/Edit Modal -->
-    <n-modal v-model:show="showCreateModal" preset="card" :title="editingId ? 'Edit Intent Space' : 'Create Intent Space'" style="width: 500px;">
+    <n-modal v-model:show="showCreateModal" preset="card" :title="editingId ? 'Edit Intent Space' : 'Create Intent Space'" :style="isMobile ? 'width: 92vw;' : 'width: 500px;'">
       <n-form :model="form" label-placement="top">
         <n-form-item label="Name" required>
           <n-input v-model:value="form.name" placeholder="e.g., HR, Legal, Finance" />
@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   NGrid, NGi, NCard, NIcon, NButton, NSpace, NTag, NModal, NForm,
   NFormItem, NInput, NPopconfirm, useMessage
@@ -82,6 +82,19 @@ import api from '@/api'
 import type { IntentSpaceResponse } from '@/types'
 
 const message = useMessage()
+const isMobile = ref(window.innerWidth < 600)
+const isTablet = ref(window.innerWidth >= 600 && window.innerWidth < 960)
+
+const gridCols = computed(() => {
+  if (isMobile.value) return 1
+  if (isTablet.value) return 2
+  return 4
+})
+
+window.addEventListener('resize', () => {
+  isMobile.value = window.innerWidth < 600
+  isTablet.value = window.innerWidth >= 600 && window.innerWidth < 960
+})
 
 const intentSpaces = ref<IntentSpaceResponse[]>([])
 const showCreateModal = ref(false)

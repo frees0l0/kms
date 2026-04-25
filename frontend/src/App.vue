@@ -1,17 +1,24 @@
 <template>
   <n-config-provider :theme="lightTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
+    <!-- Mobile overlay -->
+    <div v-if="isMobile && mobileSidebarVisible" class="sidebar-overlay" @click="mobileSidebarVisible = false" />
+
     <n-layout has-sider position="absolute" style="height: 100vh">
       <!-- Sidebar -->
       <n-layout-sider
+        v-show="!isMobile || mobileSidebarVisible"
         bordered
         collapse-mode="width"
         :collapsed-width="64"
-        :width="200"
-        :collapsed="collapsed"
-        show-trigger
-        @collapse="collapsed = true"
-        @expand="collapsed = false"
+        :width="isMobile ? 240 : 200"
+        :collapsed="isMobile ? false : collapsed"
+        :inverted="false"
+        :class="{ 'mobile-sidebar': isMobile }"
+        :native-scrollbar="false"
+        show-trigger="bar"
+        @collapse="isMobile ? (mobileSidebarVisible = false) : (collapsed = true)"
+        @expand="isMobile ? (mobileSidebarVisible = true) : (collapsed = false)"
       >
         <div style="padding: 16px; text-align: center;">
           <h2 v-if="!collapsed" style="color: var(--primary-color);">KMS</h2>
@@ -19,7 +26,7 @@
         </div>
         <n-menu
           v-model:value="activeKey"
-          :collapsed="collapsed"
+          :collapsed="isMobile ? false : collapsed"
           :collapsed-width="64"
           :collapsed-icon-size="22"
           :options="menuOptions"
@@ -29,14 +36,19 @@
 
       <!-- Main Content -->
       <n-layout>
-        <n-layout-header bordered style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
-          <h3>{{ pageTitle }}</h3>
-          <n-space>
-            <n-button v-if="isLoggedIn" size="small" @click="handleLogout">Logout</n-button>
+        <n-layout-header bordered style="padding: 16px 24px;">
+          <n-space justify="space-between" align="center">
+            <n-icon v-if="isMobile" size="20" @click="mobileSidebarVisible = !mobileSidebarVisible" style="cursor: pointer; display: flex; align-items: center;">
+              <MenuIcon />
+            </n-icon>
+            <h3 style="margin: 0;">{{ pageTitle }}</h3>
+            <n-icon v-if="isLoggedIn" size="20" @click="handleLogout" style="cursor: pointer; display: flex; align-items: center;">
+              <LogOutIcon />
+            </n-icon>
           </n-space>
         </n-layout-header>
 
-        <n-layout-content style="padding: 24px;">
+        <n-layout-content style="padding: 24px">
           <router-view />
         </n-layout-content>
       </n-layout>
@@ -51,7 +63,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { NIcon } from 'naive-ui'
 import {
   NLayout, NLayoutSider, NLayoutHeader, NLayoutContent,
-  NMenu, NButton, NSpace, NConfigProvider, NMessageProvider, lightTheme
+  NMenu, NSpace, NConfigProvider, NMessageProvider, lightTheme
 } from 'naive-ui'
 import {
   Grid as DashboardIcon,
@@ -59,7 +71,9 @@ import {
   DocumentText as DocumentIcon,
   Flash as IntentIcon,
   BarChart as AnalyticsIcon,
-  Library as LibraryIcon
+  Library as LibraryIcon,
+  Menu as MenuIcon,
+  LogOutOutline as LogOutIcon
 } from '@vicons/ionicons5'
 import { useAuthStore } from '@/stores/auth'
 
@@ -68,6 +82,16 @@ const route = useRoute()
 const authStore = useAuthStore()
 const collapsed = ref(false)
 const activeKey = ref(route.name as string)
+const isMobile = ref(window.innerWidth < 600)
+const mobileSidebarVisible = ref(false)
+
+window.addEventListener('resize', () => {
+  const wasMobile = isMobile.value
+  isMobile.value = window.innerWidth < 600
+  if (!wasMobile && isMobile.value) {
+    mobileSidebarVisible.value = false
+  }
+})
 
 // Keep active menu in sync with route on refresh
 watch(() => route.name, (name) => {
@@ -129,6 +153,7 @@ const pageTitle = computed(() => {
 function handleMenuChange(key: string) {
   activeKey.value = key
   router.push({ name: key })
+  if (isMobile.value) mobileSidebarVisible.value = false
 }
 
 function handleLogout() {
@@ -136,3 +161,20 @@ function handleLogout() {
   router.push({ name: 'login' })
 }
 </script>
+
+<style scoped>
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+}
+.mobile-sidebar {
+  height: 100vh;
+  z-index: 1000;
+  position: fixed;
+}
+</style>

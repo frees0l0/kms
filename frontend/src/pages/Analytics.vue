@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Key Metric Cards -->
-    <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
+    <n-grid :cols="metricGridCols" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
       <n-gi>
         <n-card class="metric-card">
           <div class="metric-value">{{ stats.total_queries || 0 }}</div>
@@ -23,7 +23,7 @@
     </n-grid>
 
     <!-- Charts Row -->
-    <n-grid :cols="2" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
+    <n-grid :cols="chartGridCols" :x-gap="16" :y-gap="16" style="margin-bottom: 24px;">
       <!-- Intent Distribution -->
       <n-gi>
         <n-card title="Intent Distribution" style="height: 300px; display: flex; flex-direction: column;">
@@ -50,27 +50,28 @@
       <!-- Top Documents -->
       <n-gi>
         <n-card title="Top Documents" style="height: 300px; display: flex; flex-direction: column;">
-          <div style="flex: 1; overflow: auto;">
-            <n-data-table
-              :columns="topDocColumns"
-              :data="topDocuments"
-              :pagination="false"
-              :loading="loadingDocs"
-              size="small"
-              :max-height="160"
-              virtual-scroll
-            />
-          </div>
+          <n-data-table
+            :columns="topDocColumns"
+            :data="topDocuments"
+            :pagination="false"
+            :loading="loadingDocs"
+            size="small"
+            :max-height="160"
+            :scroll-x="300"
+          />
         </n-card>
       </n-gi>
     </n-grid>
 
     <!-- Query History -->
-    <n-card title="Query History">
-      <template #header-extra>
-        <n-space>
-          <n-input v-model:value="searchQuery" placeholder="Search..." clearable style="width: 200px;" @keyup.enter="loadQueries" />
-          <n-button @click="exportCSV">Export CSV</n-button>
+    <n-card>
+      <template #header>
+        <n-space vertical justify="space-between" align="stretch">
+          <span>Query History</span>
+          <n-space :vertical="isMobile" style="gap: 8px;">
+            <n-input v-model:value="searchQuery" placeholder="Search..." clearable :style="isMobile ? 'width: 100%;' : 'width: 200px;'" @keyup.enter="loadQueries" />
+            <n-button @click="exportCSV" :style="isMobile ? 'width: 100%;' : ''">Export CSV</n-button>
+          </n-space>
         </n-space>
       </template>
 
@@ -81,6 +82,7 @@
         :loading="loading"
         :row-key="(row: any) => row.id"
         remote
+        :scroll-x="800"
         @update:page="handlePageChange"
       />
     </n-card>
@@ -97,6 +99,24 @@ import api from '@/api'
 import type { AnalyticsStats, IntentDistribution, TopDocument, QueryLog, IntentSpaceResponse } from '@/types'
 
 const message = useMessage()
+const isMobile = ref(window.innerWidth < 600)
+const isTablet = ref(window.innerWidth >= 600 && window.innerWidth < 960)
+
+const metricGridCols = computed(() => {
+  if (isMobile.value) return 1
+  if (isTablet.value) return 2
+  return 3
+})
+
+const chartGridCols = computed(() => {
+  if (isMobile.value || isTablet.value) return 1
+  return 2
+})
+
+window.addEventListener('resize', () => {
+  isMobile.value = window.innerWidth < 600
+  isTablet.value = window.innerWidth >= 600 && window.innerWidth < 960
+})
 
 const stats = ref<AnalyticsStats>({ total_queries: 0, avg_response_time_ms: 0, avg_accuracy: null })
 const distribution = ref<IntentDistribution[]>([])
@@ -121,8 +141,8 @@ watch(searchQuery, () => {
 })
 
 const topDocColumns: DataTableColumns<TopDocument> = [
-  { title: 'Document', key: 'name', ellipsis: true },
-  { title: 'Hits', key: 'hit_count', width: 80 },
+  { title: 'Document', key: 'name', width: 150, ellipsis: true },
+  { title: 'Hits', key: 'hit_count', width: 60 },
   { title: 'Intent', key: 'intent_space', width: 100 }
 ]
 
@@ -130,7 +150,7 @@ const queryColumns: DataTableColumns<QueryLog> = [
   { title: 'Time', key: 'timestamp', width: 160, render: (row) => new Date(row.timestamp).toLocaleString() },
   { title: 'Source', key: 'source', width: 100 },
   { title: 'User', key: 'user_id', width: 120, ellipsis: true },
-  { title: 'Query', key: 'query_text', ellipsis: true },
+  { title: 'Query', key: 'query_text', width: 150, ellipsis: true },
   { title: 'Intent', key: 'intent', width: 100 },
   { title: 'Confidence', key: 'confidence', width: 100, render: (row) => row.confidence?.toFixed(2) || '-' },
   { title: 'Time (ms)', key: 'response_time_ms', width: 100 },
@@ -229,6 +249,15 @@ async function loadQueries() {
   }
 }
 
+async function loadIntentSpaces() {
+  try {
+    const response = await api.get('/intents')
+    intentSpaces.value = response.data.data
+  } catch (e) {
+    console.error('Failed to load intent spaces:', e)
+  }
+}
+
 async function submitFeedback(queryId: number, feedback: 'correct' | 'wrong', correctedIntentId?: number) {
   feedbackUpdating.value = true
   try {
@@ -277,15 +306,6 @@ onMounted(() => {
   loadQueries()
   loadIntentSpaces()
 })
-
-async function loadIntentSpaces() {
-  try {
-    const response = await api.get('/intents')
-    intentSpaces.value = response.data.data
-  } catch (e) {
-    console.error('Failed to load intent spaces:', e)
-  }
-}
 </script>
 
 <style scoped>
@@ -332,5 +352,11 @@ async function loadIntentSpaces() {
   width: 40px;
   text-align: right;
   font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .metric-value {
+    font-size: 28px;
+  }
 }
 </style>

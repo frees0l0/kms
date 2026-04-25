@@ -1,6 +1,6 @@
 <template>
   <div>
-    <n-grid :cols="3" :x-gap="24" :y-gap="24">
+    <n-grid :cols="gridCols" :x-gap="24" :y-gap="24">
       <!-- Telegram Card -->
       <n-gi v-if="telegramIntegration">
         <n-card
@@ -94,6 +94,19 @@ import { Send as TelegramIcon, LogoWindows as TeamsIcon, LogoDiscord as DiscordI
 import api from '@/api'
 
 const message = useMessage()
+const isMobile = ref(window.innerWidth < 600)
+const isTablet = ref(window.innerWidth >= 600 && window.innerWidth < 960)
+
+const gridCols = computed(() => {
+  if (isMobile.value) return 1
+  if (isTablet.value) return 2
+  return 3
+})
+
+window.addEventListener('resize', () => {
+  isMobile.value = window.innerWidth < 600
+  isTablet.value = window.innerWidth >= 600 && window.innerWidth < 960
+})
 
 const integrations = ref<any[]>([])
 const testing = ref('')

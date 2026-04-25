@@ -1,6 +1,6 @@
 <template>
-  <div style="display: flex; height: 100%; justify-content: center; align-items: center;">
-    <n-card style="width: 400px;" title="KMS Login">
+  <div class="login-wrapper">
+    <n-card class="login-card" title="KMS Login">
       <n-form ref="formRef" :model="form" :rules="rules">
         <n-form-item path="username" label="Username">
           <n-input v-model:value="form.username" placeholder="admin" />
@@ -69,3 +69,23 @@ async function handleLogin() {
   })
 }
 </script>
+
+<style scoped>
+.login-wrapper {
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.login-card {
+  width: 400px;
+  max-width: 100%;
+}
+@media (max-width: 480px) {
+  .login-card {
+    width: 100%;
+    margin: 0;
+  }
+}
+</style>

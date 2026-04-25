@@ -26,7 +26,7 @@
     </n-card>
 
     <!-- Upload Modal -->
-    <n-modal v-model:show="showUploadModal" preset="card" title="Upload Document" style="width: 400px;">
+    <n-modal v-model:show="showUploadModal" preset="card" title="Upload Document" :style="isMobile ? 'width: 92vw;' : 'width: 400px;'">
       <p><strong>{{ selectedFile?.name }}</strong></p>
       <n-form style="margin-top: 16px;">
         <n-form-item label="Intent Space (optional)">
@@ -47,7 +47,7 @@
     </n-modal>
 
     <!-- Edit Intent Modal -->
-    <n-modal v-model:show="showEditIntentModal" preset="card" title="Edit Intent Space" style="width: 400px;">
+    <n-modal v-model:show="showEditIntentModal" preset="card" title="Edit Intent Space" :style="isMobile ? 'width: 92vw;' : 'width: 400px;'">
       <p><strong>{{ selectedDocForEdit?.name }}</strong></p>
       <n-form style="margin-top: 16px;">
         <n-form-item label="Intent Space">
@@ -70,11 +70,11 @@
     <!-- Document Table -->
     <n-card>
       <template #header>
-        <n-space justify="space-between" align="center">
+        <n-space vertical justify="space-between" align="stretch">
           <span>Documents</span>
-          <n-space>
-            <n-input v-model:value="searchQuery" placeholder="Search..." clearable style="width: 200px;" />
-            <n-select v-model:value="statusFilter" :options="statusOptions" placeholder="Status" clearable style="width: 120px;" />
+          <n-space :vertical="isMobile" style="gap: 8px;">
+            <n-input v-model:value="searchQuery" placeholder="Search..." clearable :style="isMobile ? 'width: 100%;' : 'width: 200px;'" />
+            <n-select v-model:value="statusFilter" :options="statusOptions" placeholder="Status" clearable :style="isMobile ? 'width: 100%;' : 'width: 120px;'" />
           </n-space>
         </n-space>
       </template>
@@ -85,6 +85,7 @@
         :pagination="pagination"
         :loading="loading"
         :row-key="(row: any) => row.id"
+        :scroll-x="700"
       />
 
       <n-alert v-if="hasPending" type="info" style="margin-top: 16px;">
@@ -105,6 +106,12 @@ import api from '@/api'
 import type { DocumentResponse, IntentSpaceResponse } from '@/types'
 
 const message = useMessage()
+const isMobile = ref(window.innerWidth < 600)
+const isTablet = ref(window.innerWidth >= 600 && window.innerWidth < 960)
+window.addEventListener('resize', () => {
+  isMobile.value = window.innerWidth < 600
+  isTablet.value = window.innerWidth >= 600 && window.innerWidth < 960
+})
 
 const documents = ref<DocumentResponse[]>([])
 const intentSpaces = ref<IntentSpaceResponse[]>([])
@@ -147,7 +154,7 @@ watch([searchQuery, statusFilter], () => {
 })
 
 const columns: DataTableColumns<DocumentResponse> = [
-  { title: 'Name', key: 'name', ellipsis: true },
+  { title: 'Name', key: 'name', width: 150, ellipsis: true },
   { title: 'Format', key: 'format', width: 80 },
   { title: 'Size', key: 'size_bytes', width: 100, render: (row) => formatSize(row.size_bytes) },
   { title: 'Intent', key: 'intent_space_name', width: 120 },

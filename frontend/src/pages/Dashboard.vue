@@ -9,13 +9,13 @@
       </n-button>
     </n-space>
 
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" v-if="loading">
+    <n-grid :cols="gridCols" :x-gap="16" :y-gap="16" v-if="loading">
       <n-gi v-for="i in 4" :key="i">
         <n-skeleton height="120px" />
       </n-gi>
     </n-grid>
 
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" v-else>
+    <n-grid :cols="gridCols" :x-gap="16" :y-gap="16" v-else>
       <!-- Frontend Integration Card -->
       <n-gi>
         <n-card class="dashboard-card integration" @click="$router.push({ name: 'integrations' })">
@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { NGrid, NGi, NCard, NIcon, NButton, NSpace, NBadge, NTag, NSkeleton } from 'naive-ui'
 import {
   Refresh as RefreshIcon,
@@ -121,6 +121,20 @@ import api from '@/api'
 import type { DashboardSummary, IntegrationResponse } from '@/types'
 
 const loading = ref(true)
+const isMobile = ref(window.innerWidth < 600)
+const isTablet = ref(window.innerWidth >= 600 && window.innerWidth < 960)
+
+const gridCols = computed(() => {
+  if (isMobile.value) return 1
+  if (isTablet.value) return 2
+  return 4
+})
+
+window.addEventListener('resize', () => {
+  isMobile.value = window.innerWidth < 600
+  isTablet.value = window.innerWidth >= 600 && window.innerWidth < 960
+})
+
 const summary = ref<DashboardSummary>({
   frontend_integrations: [],
   kb_stats: { total_documents: 0, processed: 0, pending: 0, error: 0 },
@@ -209,5 +223,17 @@ onMounted(() => {
 }
 .card-action {
   margin-top: auto;
+}
+
+@media (max-width: 600px) {
+  .card-big-number {
+    font-size: 32px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .card-stats {
+    gap: 16px;
+  }
 }
 </style>
